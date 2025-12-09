@@ -1,70 +1,77 @@
-# 🤖 SemanticLayerBuilder Agent Specification
+# SemanticLayerBuilder — Project Definition
 
-## 1. Overview and Goal
+## 1. Purpose
 
-| Key Attribute | Description |
-| :--- | :--- |
-| **Agent Name** | `SemanticLayerBuilder` |
-| **Primary Goal** | Automatically ingest and analyze raw data (XML or SQL tables) to generate a structured **semantic layer** definition. |
-| **Value Proposition** | Accelerate the creation of data-querying infrastructure by automating the definition of **metrics** and **dimensions**. |
+SemanticLayerBuilder is a system for automatically generating a *semantic layer*
+(dimensions + metrics) for arbitrary client datasets using:
 
----
+- sample data inspection (XML or SQL)
+- schema inference
+- LLM-native reasoning
+- standardized YAML config files
+- a **generic** contract for an MCP server
 
-## 2. Input and Output Specification
+The goal is to let consultants onboard new clients quickly, with minimal
+hand-crafted semantic modeling, while still producing **clean, explainable**
+metrics and dimensions that can be used by downstream tools and chatbots.
 
-### ➡️ Input
+## 2. Core Components
 
-| Input Type | Format/Source | Description |
-| :--- | :--- | :--- |
-| **Single Source** | XML File | A single XML document containing hierarchical data. |
-| **Multiple Sources** | SQL Database Tables | A set of connected tables (e.g., provided via connection credentials or a schema definition). |
-| **Configuration** | JSON/YAML (Optional) | User-defined hints, exclusion lists, or specific naming conventions to enforce. |
+1. **Frontend UI (single-screen web app)**
+   - User chooses data source (XML file / SQL database)
+   - Controls sampling (first N rows vs random sample)
+   - Provides config hints (e.g., columns to exclude)
+   - Shows run status & logs
+   - Shows discovered dimensions (and later metrics) live
 
-### ⬅️ Output
+2. **FastAPI Backend (Orchestrator)**
+   - Exposes:
+     - `GET /` → serves the one-screen UI
+     - `POST /run_scan` → triggers a semantic scan
+   - Validates and normalizes UI inputs
+   - Calls the **Builder Agent** with a well-defined payload
+   - Returns logs + discovered semantic objects (dims/metrics) to the UI
 
-The agent must produce two well-formed YAML files that conform to the required schema for the downstream **MCP Server** query constructor.
+3. **Builder Agent (LLM-native Worker)**
+   - Inspects schema and sample rows from a data source
+   - Infers candidate **dimensions** (and later **metrics**)
+   - Maps findings into a **generic semantic contract** schema
+   - Emits:
+     - `dimensions.yaml`
+     - `metrics.yaml`
+   - Produces human-readable logs and suggestions for the UI
 
-| Output File | Purpose | Example Contents |
-| :--- | :--- | :--- |
-| `metrics.yaml` | Defines calculable numerical fields (e.g., counts, sums, averages). | `metrics: - name: total_sales - type: sum - expression: 'price * quantity'` |
-| `dimensions.yaml` | Defines categorical or descriptive fields used for filtering and grouping. | `dimensions: - name: product_category - type: string - source: 'product_table.category_name'` |
+4. **MCP Server (Semantic Layer Runtime)**
+   - Loads `dimensions.yaml` + `metrics.yaml`
+   - Validates them against the generic contract
+   - Exposes tools to:
+     - list dimensions and metrics
+     - run queries against the underlying data
+   - Acts as a standard endpoint that chatbots / agents can call
 
----
+## 3. Generic Semantic Contract (Shared Across Clients)
 
-## 3. Processing and Core Logic
+The MCP server uses a **generic config schema** that is the same for all
+clients. The content of each file is client-specific, but the **shape** is
+consistent.
 
-### 3.1. Data Ingestion and Normalization
-* **XML Handling:** Traverse the XML tree to identify nodes and attributes, flattening the hierarchy where appropriate to suggest initial **dimensions**.
-* **Table Handling:** Analyze table schemas to identify **primary keys**, **foreign keys**, and column data types. Use relationships to infer join paths.
+### 3.1 Dimensions Schema (conceptual)
 
-### 3.2. Semantic Inference (LLM Core)
-* **Candidate Identification:** Based on data types, identify fields for **Metrics** (numerical/temporal) and **Dimensions** (string/date/boolean/ID).
-* **Intelligent Naming/Grouping:** Use an LLM to apply **contextual awareness** to raw column names (e.g., `cust_id` $\rightarrow$ `Customer ID`).
-* **Aggregation Suggestion:** Suggest common metrics (e.g., `count`, `sum`, `avg`) for numerical fields.
+```yaml
+version: 1
+dimensions:
+  - name: customer_city
+    label: Customer City
+    description: City of the customer’s primary address
 
----
+    type: categorical            # categorical | time | numeric | boolean
 
-## 4. Quality, Security, and Operational Considerations
+    source:
+      kind: sql                  # sql | xml | other
+      entity: customers          # table name or logical entity
+      field: city                # column or field name
+      path: null                 # optional XPath / JSONPath for XML/JSON
 
-### 🔒 Security
-* **Input Sanitization:** Validate all configuration inputs (paths, credentials) to prevent **injection attacks**.
-* **PII/Sensitive Data:** Flag columns that appear to contain **Personally Identifiable Information (PII)** and allow the user to exclude or mask them.
-
-### ⚖️ Scale and Performance
-* **Chunking/Streaming:** For large data sources, implement **data streaming** or **sampling** instead of loading the entire dataset into memory.
-* **Caching:** Cache schema analysis results to improve run time on subsequent operations.
-
-### 📈 Reliability and Operationalization
-* **Input Validation:** Thoroughly check the generated YAML files against the expected MCP Server **schema** *before* saving them to disk.
-* **Audit Logging:** Log the input source, configuration, and success/failure status of every run.
-
----
-
-## 5. Interaction Interface (GUI-Focused)
-
-The agent should operate in a step-by-step manner to facilitate learning and validation.
-
-* **Step 1: Input Selection:** Specify data source (XML file path or DB connection).
-* **Step 2: Schema Review & PII Flagging:** Review inferred fields, confirm PII flags, and exclude raw fields.
-* **Step 3: Semantic Layer Refinement:** Edit inferred **dimension names** and adjust **aggregation types** and underlying expressions for **metrics**.
-* **Step 4: Output Generation:** Validate and save the `metrics.yaml` and `dimensions.yaml` files.
+    pii: false
+    nullable: true
+    tags: [ geo, customer ]ut Generation:** Validate and save the `metrics.yaml` and `dimensions.yaml` files.
