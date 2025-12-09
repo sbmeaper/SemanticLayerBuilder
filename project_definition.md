@@ -15,63 +15,119 @@ The goal is to let consultants onboard new clients quickly, with minimal
 hand-crafted semantic modeling, while still producing **clean, explainable**
 metrics and dimensions that can be used by downstream tools and chatbots.
 
+---
+
 ## 2. Core Components
 
-1. **Frontend UI (single-screen web app)**
-   - User chooses data source (XML file / SQL database)
-   - Controls sampling (first N rows vs random sample)
-   - Provides config hints (e.g., columns to exclude)
-   - Shows run status & logs
-   - Shows discovered dimensions (and later metrics) live
+### 2.1 Frontend UI (single-screen web app)
 
-2. **FastAPI Backend (Orchestrator)**
-   - Exposes:
-     - `GET /` → serves the one-screen UI
-     - `POST /run_scan` → triggers a semantic scan
-   - Validates and normalizes UI inputs
-   - Calls the **Builder Agent** with a well-defined payload
-   - Returns logs + discovered semantic objects (dims/metrics) to the UI
+- User selects a data source (XML file or SQL database)
+- Controls sampling (first N rows or random sample)
+- Provides config hints (e.g., columns to exclude)
+- Shows run status & logs
+- Shows discovered dimensions and metrics live
+- Provides a “Generate YAML” button once refinement is complete
 
-3. **Builder Agent (LLM-native Worker)**
-   - Inspects schema and sample rows from a data source
-   - Infers candidate **dimensions** (and later **metrics**)
-   - Maps findings into a **generic semantic contract** schema
-   - Emits:
-     - `dimensions.yaml`
-     - `metrics.yaml`
-   - Produces human-readable logs and suggestions for the UI
+### 2.2 FastAPI Backend (Orchestrator)
 
-4. **MCP Server (Semantic Layer Runtime)**
-   - Loads `dimensions.yaml` + `metrics.yaml`
-   - Validates them against the generic contract
-   - Exposes tools to:
-     - list dimensions and metrics
-     - run queries against the underlying data
-   - Acts as a standard endpoint that chatbots / agents can call
+- Routes:
+  - `GET /` → serves the one-screen UI
+  - `POST /run_scan` → triggers a semantic scan
+- Validates and normalizes UI inputs
+- Connects to XML/SQL sources to produce:
+  - structured schema
+  - sample rows
+- Calls the **Builder Agent** with a well-defined payload
+- Returns logs + semantic objects (dimensions + metrics) to the UI
 
-## 3. Generic Semantic Contract (Shared Across Clients)
+### 2.3 Builder Agent (LLM-native Worker)
 
-The MCP server uses a **generic config schema** that is the same for all
-clients. The content of each file is client-specific, but the **shape** is
-consistent.
+- Analyzes schema + sample data provided by the backend
+- Infers candidate **dimensions** and **metrics**
+- Maps them into the **generic semantic contract**
+- Emits:
+  - `dimensions.yaml`
+  - `metrics.yaml`
+- Produces logs and modeling notes for the UI
+- Runs strictly at **design time**, never in the runtime query path
 
-### 3.1 Dimensions Schema (conceptual)
+### 2.4 MCP Server (Semantic Layer Runtime)
+
+- Loads `dimensions.yaml` + `metrics.yaml`
+- Validates them against the generic contract
+- Exposes a **stable, generic tool surface** to downstream agents:
+  - list dimensions
+  - list metrics
+  - get metric definition
+  - run metric queries
+  - explain metrics
+- Provides the interface downstream agents/chatbots call using the same API for all clients
+
+---
+
+## 3. Design Goals
+
+- **Multi-client support**  
+  Each client has its own semantic definitions but all conform to the same contract.
+
+- **LLM-native**  
+  Simple, predictable YAML shapes that LLMs can reliably generate and consume.
+
+- **Strict validation**  
+  MCP server enforces schema correctness to guarantee agent reliability.
+
+- **Small contract**  
+  Minimizes LLM tokens needed for Builder Agent, MCP server, and downstream querying agents.
+
+- **Scalable onboarding**  
+  Consultants can onboard new clients with minimal friction and reproducible results.
+
+---
+
+## 4. Generic Semantic Contract (Optimized, Strict, Stable)
+
+This contract defines the **universal shapes** for dimensions, metrics, and MCP tool behavior.  
+All clients must conform.  
+The Builder Agent must generate YAML that validates against it.  
+The MCP Server must enforce it strictly.
+
+The contract intentionally stays **small and rigid** so:
+
+- LLM agents can learn it easily  
+- It is cheap to include in prompts  
+- It generalizes across industries  
+- It remains stable across clients  
+- Validation is simple and deterministic
+
+---
+
+### 4.1 Allowed Dimension Types
+
+A dimension MUST have one of:
+
+- `categorical`
+- `time`
+- `numeric`
+- `boolean`
+
+No other types are permitted.
+
+---
+
+### 4.2 Dimension YAML Shape
 
 ```yaml
-version: 1
-dimensions:
-  - name: customer_city
-    label: Customer City
-    description: City of the customer’s primary address
+- name: string (snake_case)
+  label: string (Title Case)
+  description: string (optional)
 
-    type: categorical            # categorical | time | numeric | boolean
+  type: one of [categorical, time, numeric, boolean]
 
-    source:
-      kind: sql                  # sql | xml | other
-      entity: customers          # table name or logical entity
-      field: city                # column or field name
-      path: null                 # optional XPath / JSONPath for XML/JSON
+  source:
+    kind: "sql" | "xml"
+    entity: string     # table or logical XML group
+    field: string      # column name or XML field/path
 
-    pii: false
-    nullable: true
-    tags: [ geo, customer ]ut Generation:** Validate and save the `metrics.yaml` and `dimensions.yaml` files.
+  nullable: boolean
+  pii: boolean
+  tags: [string, ...] (optional)
