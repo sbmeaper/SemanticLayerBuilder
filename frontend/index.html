@@ -1,0 +1,500 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>SemanticLayerBuilder</title>
+  <style>
+    :root {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      color-scheme: light;
+    }
+    body {
+      margin: 0;
+      padding: 1.5rem;
+      background: #f6f7fb;
+    }
+    h1 {
+      margin: 0 0 0.5rem 0;
+    }
+    h2 {
+      margin-top: 0;
+    }
+    .badge {
+      display: inline-block;
+      padding: 0.1rem 0.5rem;
+      border-radius: 999px;
+      background: #e5edff;
+      color: #1d4ed8;
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      margin-bottom: 1rem;
+    }
+    .layout {
+      max-width: 1100px;
+      margin: 0 auto;
+      display: flex;
+      flex-direction: column;
+      gap: 1.25rem;
+    }
+    .card {
+      background: #ffffff;
+      border-radius: 10px;
+      padding: 1.25rem 1.5rem;
+      box-shadow: 0 1px 4px rgba(15, 23, 42, 0.1);
+    }
+    .top-section {
+      display: grid;
+      grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
+      gap: 1.25rem;
+    }
+    label {
+      display: block;
+      margin-top: 0.75rem;
+      font-size: 0.9rem;
+      font-weight: 500;
+    }
+    input[type="text"],
+    input[type="password"],
+    select {
+      width: 100%;
+      box-sizing: border-box;
+      padding: 0.45rem 0.6rem;
+      margin-top: 0.25rem;
+      border-radius: 6px;
+      border: 1px solid #cbd2e1;
+      font-family: inherit;
+      font-size: 0.9rem;
+      background: #f9fafb;
+    }
+    input[type="checkbox"] {
+      margin-right: 0.4rem;
+    }
+    textarea {
+      width: 100%;
+      box-sizing: border-box;
+      padding: 0.5rem 0.6rem;
+      border-radius: 6px;
+      border: 1px solid #cbd2e1;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      font-size: 0.85rem;
+      resize: vertical;
+      min-height: 140px;
+      background: #0f172a;
+      color: #e5e7eb;
+    }
+    .inline {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      margin-top: 0.75rem;
+      font-size: 0.9rem;
+    }
+    .sampling-row {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      margin-top: 0.4rem;
+      font-size: 0.9rem;
+    }
+    .sampling-row input[type="radio"] {
+      margin-right: 0.25rem;
+    }
+    .sampling-row input[type="number"] {
+      width: 80px;
+      padding: 0.3rem 0.5rem;
+    }
+    button {
+      margin-top: 1rem;
+      padding: 0.55rem 1.4rem;
+      border-radius: 999px;
+      border: none;
+      background: #2563eb;
+      color: white;
+      font-size: 0.95rem;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    button:disabled {
+      opacity: 0.6;
+      cursor: default;
+    }
+    .status-line {
+      font-size: 0.9rem;
+      margin-bottom: 0.5rem;
+      color: #475569;
+    }
+    .status-line strong {
+      color: #111827;
+    }
+    .results-tabs {
+      display: flex;
+      gap: 0.5rem;
+      margin-bottom: 0.75rem;
+      border-bottom: 1px solid #e5e7eb;
+    }
+    .tab-button {
+      padding: 0.35rem 0.9rem;
+      border: none;
+      border-radius: 999px 999px 0 0;
+      background: transparent;
+      font-size: 0.85rem;
+      font-weight: 500;
+      cursor: pointer;
+      color: #64748b;
+    }
+    .tab-button.active {
+      background: #e5edff;
+      color: #1d4ed8;
+    }
+    .results-content {
+      display: none;
+    }
+    .results-content.active {
+      display: block;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.85rem;
+    }
+    th, td {
+      padding: 0.4rem 0.5rem;
+      border-bottom: 1px solid #e5e7eb;
+      text-align: left;
+    }
+    th {
+      background: #f3f4f6;
+      font-weight: 600;
+    }
+    .yaml-preview {
+      margin-top: 0.75rem;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+      gap: 0.75rem;
+    }
+    .yaml-preview h3 {
+      margin: 0 0 0.35rem 0;
+      font-size: 0.9rem;
+    }
+    .pill {
+      display: inline-block;
+      padding: 0.1rem 0.45rem;
+      border-radius: 999px;
+      font-size: 0.7rem;
+      background: #ecfeff;
+      color: #0e7490;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      margin-left: 0.35rem;
+    }
+  </style>
+</head>
+<body>
+  <div class="layout">
+    <div>
+      <h1>SemanticLayerBuilder</h1>
+      <span class="badge">Builder UI · prototype</span>
+    </div>
+
+    <div class="card top-section">
+      <!-- Left: Data source & options -->
+      <div>
+        <h2>Data Source & Options</h2>
+
+        <label for="source-type">Source type</label>
+        <select id="source-type">
+          <option value="sql">Relational (SQL)</option>
+          <option value="xml">XML file</option>
+        </select>
+
+        <div id="sql-fields">
+          <label for="sql-host">Host</label>
+          <input id="sql-host" type="text" placeholder="e.g. localhost or db.company.com" />
+
+          <label for="sql-port">Port</label>
+          <input id="sql-port" type="text" placeholder="5432" value="5432" />
+
+          <label for="sql-database">Database</label>
+          <input id="sql-database" type="text" placeholder="e.g. analytics_db" />
+
+          <label for="sql-username">Username</label>
+          <input id="sql-username" type="text" placeholder="db user" />
+
+          <label for="sql-password">Password</label>
+          <input id="sql-password" type="password" placeholder="••••••••" />
+
+          <label for="sql-table">Table / view name</label>
+          <input id="sql-table" type="text" placeholder="e.g. orders" />
+        </div>
+
+        <div id="xml-fields" style="display:none;">
+          <label for="xml-path">XML file path</label>
+          <input id="xml-path" type="text" placeholder="/path/to/export.xml" />
+          <!-- later this could be a file picker; for now, keep it simple -->
+        </div>
+
+        <label>Sampling</label>
+        <div class="sampling-row">
+          <label class="inline">
+            <input type="radio" name="sampling-mode" value="first_n" checked />
+            First N rows
+          </label>
+          <label class="inline">
+            <input type="radio" name="sampling-mode" value="every_nth" />
+            Every Nth row
+          </label>
+          <input id="sampling-value" type="number" min="1" value="100" />
+        </div>
+
+        <label for="exclude-cols">Columns to exclude (comma-separated)</label>
+        <input id="exclude-cols" type="text" placeholder="e.g. debug_col, raw_payload" />
+
+        <label class="inline">
+          <input id="allow-pii" type="checkbox" />
+          Allow PII fields in semantic layer
+        </label>
+      </div>
+
+      <!-- Right: Run controls & status -->
+      <div>
+        <h2>Run Builder</h2>
+        <p class="status-line">
+          Status:
+          <strong id="status-text">Idle</strong>
+        </p>
+
+        <button id="run-btn">Run Builder</button>
+
+        <label for="status-log">Logs</label>
+        <textarea id="status-log" readonly>
+This is a prototype UI. The Run button currently simulates a payload and fake results.
+Later it will call the FastAPI backend at POST /run_scan.</textarea>
+      </div>
+    </div>
+
+    <!-- Results -->
+    <div class="card">
+      <h2>
+        Results
+        <span class="pill" id="run-summary-pill">no run yet</span>
+      </h2>
+
+      <div class="results-tabs">
+        <button class="tab-button active" data-tab="dimensions">Dimensions</button>
+        <button class="tab-button" data-tab="metrics">Metrics</button>
+        <button class="tab-button" data-tab="yaml">YAML Preview</button>
+      </div>
+
+      <div id="tab-dimensions" class="results-content active">
+        <table>
+          <thead>
+          <tr>
+            <th>Name</th>
+            <th>Label</th>
+            <th>Type</th>
+            <th>Source</th>
+            <th>Nullable</th>
+            <th>PII</th>
+          </tr>
+          </thead>
+          <tbody id="dims-tbody">
+          <tr>
+            <td colspan="6">No run yet. Dimensions will appear here.</td>
+          </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div id="tab-metrics" class="results-content">
+        <table>
+          <thead>
+          <tr>
+            <th>Name</th>
+            <th>Label</th>
+            <th>Aggregation</th>
+            <th>Expression</th>
+            <th>Nullable</th>
+          </tr>
+          </thead>
+          <tbody id="metrics-tbody">
+          <tr>
+            <td colspan="5">No run yet. Metrics will appear here.</td>
+          </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div id="tab-yaml" class="results-content">
+        <div class="yaml-preview">
+          <div>
+            <h3>dimensions.yaml</h3>
+            <textarea id="yaml-dimensions" readonly>Dimensions YAML will appear here after a run.</textarea>
+          </div>
+          <div>
+            <h3>metrics.yaml</h3>
+            <textarea id="yaml-metrics" readonly>Metrics YAML will appear here after a run.</textarea>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+    <script>
+    function byId(id) {
+      return document.getElementById(id);
+    }
+
+    document.addEventListener("DOMContentLoaded", function () {
+      const sourceType = byId("source-type");
+      const sqlFields = byId("sql-fields");
+      const xmlFields = byId("xml-fields");
+      const runBtn = byId("run-btn");
+      const statusText = byId("status-text");
+      const statusLog = byId("status-log");
+      const runSummaryPill = byId("run-summary-pill");
+      const dimsTbody = byId("dims-tbody");
+      const metricsTbody = byId("metrics-tbody");
+      const yamlDimensions = byId("yaml-dimensions");
+      const yamlMetrics = byId("yaml-metrics");
+
+      // Toggle SQL vs XML fields
+      sourceType.addEventListener("change", function () {
+        if (sourceType.value === "sql") {
+          sqlFields.style.display = "";
+          xmlFields.style.display = "none";
+        } else {
+          sqlFields.style.display = "none";
+          xmlFields.style.display = "";
+        }
+      });
+
+      // Tabs
+      const tabButtons = Array.from(document.querySelectorAll(".tab-button"));
+      const tabContents = {
+        dimensions: document.getElementById("tab-dimensions"),
+        metrics: document.getElementById("tab-metrics"),
+        yaml: document.getElementById("tab-yaml")
+      };
+
+      tabButtons.forEach(btn => {
+        btn.addEventListener("click", () => {
+          tabButtons.forEach(b => b.classList.remove("active"));
+          btn.classList.add("active");
+          const tab = btn.getAttribute("data-tab");
+          Object.keys(tabContents).forEach(key => {
+            tabContents[key].classList.toggle("active", key === tab);
+          });
+        });
+      });
+
+      // Run button -> call backend /run_scan
+      runBtn.addEventListener("click", async () => {
+        statusText.textContent = "Running builder…";
+        appendLog("Submitting run to backend…");
+
+        const samplingMode = document.querySelector("input[name='sampling-mode']:checked").value;
+        const samplingValue = parseInt(byId("sampling-value").value || "100", 10);
+        const excludeColsRaw = byId("exclude-cols").value || "";
+        const excludeColumns = excludeColsRaw
+          .split(",")
+          .map(s => s.trim())
+          .filter(Boolean);
+
+        const payload = {
+          source_type: sourceType.value,
+          sql_host: sourceType.value === "sql" ? (byId("sql-host").value || null) : null,
+          sql_port: sourceType.value === "sql"
+            ? (parseInt(byId("sql-port").value || "0", 10) || null)
+            : null,
+          sql_database: sourceType.value === "sql" ? (byId("sql-database").value || null) : null,
+          sql_username: sourceType.value === "sql" ? (byId("sql-username").value || null) : null,
+          sql_password: sourceType.value === "sql" ? (byId("sql-password").value || null) : null,
+          sql_table: sourceType.value === "sql" ? (byId("sql-table").value || null) : null,
+          xml_path: sourceType.value === "xml" ? (byId("xml-path").value || null) : null,
+          sampling_mode: samplingMode,
+          sampling_value: samplingValue,
+          exclude_columns: excludeColumns,
+          allow_pii: byId("allow-pii").checked
+        };
+
+        // Update summary pill based on payload
+        const summary = sourceType.value === "sql"
+          ? `SQL · table=${payload.sql_table || "(none)"} · sampling=${samplingMode} ${samplingValue}`
+          : `XML · path=${payload.xml_path || "(none)"} · sampling=${samplingMode} ${samplingValue}`;
+        runSummaryPill.textContent = summary;
+
+        try {
+          appendLog("Payload: " + JSON.stringify(payload));
+          const resp = await fetch("http://localhost:8000/run_scan", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload)
+          });
+
+          if (!resp.ok) {
+            throw new Error("HTTP " + resp.status + " " + resp.statusText);
+          }
+
+          const data = await resp.json();
+          appendLog("Backend responded with status=" + data.status + " message=" + (data.message || ""));
+
+          statusText.textContent = "Status: " + data.status;
+
+          // Dimensions table
+          if (data.dimensions && data.dimensions.length > 0) {
+            dimsTbody.innerHTML = "";
+            data.dimensions.forEach(d => {
+              const tr = document.createElement("tr");
+              tr.innerHTML = `
+                <td>${d.name}</td>
+                <td>${d.label}</td>
+                <td>${d.type}</td>
+                <td>${d.source}</td>
+                <td>${d.nullable}</td>
+                <td>${d.pii}</td>
+              `;
+              dimsTbody.appendChild(tr);
+            });
+          } else {
+            dimsTbody.innerHTML = '<tr><td colspan="6">No dimensions returned.</td></tr>';
+          }
+
+          // Metrics table
+          if (data.metrics && data.metrics.length > 0) {
+            metricsTbody.innerHTML = "";
+            data.metrics.forEach(m => {
+              const tr = document.createElement("tr");
+              tr.innerHTML = `
+                <td>${m.name}</td>
+                <td>${m.label}</td>
+                <td>${m.aggregation}</td>
+                <td>${m.expression}</td>
+                <td>${m.nullable}</td>
+              `;
+              metricsTbody.appendChild(tr);
+            });
+          } else {
+            metricsTbody.innerHTML = '<tr><td colspan="5">No metrics returned.</td></tr>';
+          }
+
+          // YAML preview (not implemented in backend yet)
+          yamlDimensions.value = "Backend does not return YAML yet.\nThis will be populated once Builder Agent integration is done.";
+          yamlMetrics.value = "Backend does not return YAML yet.\nThis will be populated once Builder Agent integration is done.";
+        } catch (err) {
+          statusText.textContent = "Error during run.";
+          appendLog("Error: " + err.message);
+          alert("Error calling backend: " + err.message);
+        }
+      });
+
+      function appendLog(line) {
+        const now = new Date().toISOString().substring(11, 19);
+        statusLog.value += "\n[" + now + "] " + line;
+        statusLog.scrollTop = statusLog.scrollHeight;
+      }
+    });
+  </script>
+</body>
+</html>
