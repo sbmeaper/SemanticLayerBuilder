@@ -1,6 +1,34 @@
 from typing import List
 from backend.models.run_scan_models import RunScanRequest
+from pathlib import Path
+from typing import List, Dict
 
+import pyarrow.parquet as pq  # make sure pyarrow is in your env
+
+
+def get_parquet_table_schema(file_path: str) -> List[Dict]:
+    """
+    Inspect a Parquet file and return a simple column schema
+    that scan_service can later turn into DimensionPreview/MetricPreview.
+
+    Returns a list of dicts like:
+      {"name": "column_name", "data_type": "int64", "nullable": True}
+    """
+    parquet_file = pq.ParquetFile(file_path)
+    schema = parquet_file.schema_arrow  # Arrow schema object
+
+    columns: List[Dict] = []
+    for field in schema:
+        columns.append(
+            {
+                "name": field.name,
+                "data_type": str(field.type),
+                "nullable": bool(field.nullable),
+            }
+        )
+
+    # For now we just return the columns list; the caller can decide on table_name
+    return columns
 
 class SchemaColumn:
     """
@@ -16,24 +44,17 @@ class SchemaColumn:
         return f"SchemaColumn(name={self.name!r}, type={self.data_type!r}, nullable={self.nullable!r})"
 
 
-async def get_sql_table_schema(request: RunScanRequest) -> List[SchemaColumn]:
+from pathlib import Path
+
+async def get_sql_table_schema(*args, **kwargs):
     """
-    Stub implementation for SQL schema profiling.
-
-    Ultimately this will:
-      - connect to the SQL database described by `request`
-      - query INFORMATION_SCHEMA (or equivalent) for column names, types, nullability
-      - return a list[SchemaColumn]
-
-    For now, it returns a hard-coded example so we can wire the flow end-to-end.
+    TEMP: instead of inspecting a real SQL DB, use the schema
+    from our local health_records.parquet file.
+    We keep this async so existing callers (await ...) still work.
     """
+    project_root = Path(__file__).resolve().parents[2]
+    parquet_path = project_root / "data" / "health_records.parquet"
 
-    # TODO: replace this with real database logic.
-    # For now we just pretend the table looks like an "orders" table.
-    return [
-        SchemaColumn(name="order_id", data_type="integer", nullable=False),
-        SchemaColumn(name="customer_id", data_type="integer", nullable=False),
-        SchemaColumn(name="order_total", data_type="numeric", nullable=False),
-        SchemaColumn(name="created_at", data_type="timestamp", nullable=False),
-        SchemaColumn(name="notes", data_type="text", nullable=True),
-    ]
+    # This function should already be defined above in this same file.
+    columns = get_parquet_table_schema(str(parquet_path))
+    return columns
