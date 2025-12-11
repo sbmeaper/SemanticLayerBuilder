@@ -1,9 +1,9 @@
-from typing import List
-from backend.models.run_scan_models import RunScanRequest
-from pathlib import Path
 from typing import List, Dict
+from pathlib import Path
 
 import pyarrow.parquet as pq  # make sure pyarrow is in your env
+
+from backend.models.run_scan_models import SchemaColumn
 
 
 def get_parquet_table_schema(file_path: str) -> List[Dict]:
@@ -27,34 +27,31 @@ def get_parquet_table_schema(file_path: str) -> List[Dict]:
             }
         )
 
-    # For now we just return the columns list; the caller can decide on table_name
     return columns
 
-class SchemaColumn:
-    """
-    Simple in-memory representation of a column in a SQL table.
-    Later we may promote this to a Pydantic model if we want to return it to the UI.
-    """
-    def __init__(self, name: str, data_type: str, nullable: bool):
-        self.name = name
-        self.data_type = data_type
-        self.nullable = nullable
 
-    def __repr__(self) -> str:
-        return f"SchemaColumn(name={self.name!r}, type={self.data_type!r}, nullable={self.nullable!r})"
-
-
-from pathlib import Path
-
-async def get_sql_table_schema(*args, **kwargs):
+async def get_sql_table_schema(*args, **kwargs) -> List[SchemaColumn]:
     """
     TEMP: instead of inspecting a real SQL DB, use the schema
     from our local health_records.parquet file.
     We keep this async so existing callers (await ...) still work.
+
+    Returns a list of SchemaColumn objects, which is what scan_service expects.
     """
     project_root = Path(__file__).resolve().parents[2]
     parquet_path = project_root / "data" / "health_records.parquet"
 
-    # This function should already be defined above in this same file.
-    columns = get_parquet_table_schema(str(parquet_path))
-    return columns
+    # Get raw column dicts from the Parquet file
+    column_dicts = get_parquet_table_schema(str(parquet_path))
+
+    # Wrap each dict into a SchemaColumn instance
+    schema_columns: List[SchemaColumn] = [
+        SchemaColumn(
+            name=col["name"],
+            data_type=col["data_type"],
+            nullable=col.get("nullable", True),
+        )
+        for col in column_dicts
+    ]
+
+    return schema_columns

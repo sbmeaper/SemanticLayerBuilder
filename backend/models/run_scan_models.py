@@ -1,6 +1,11 @@
 from typing import List, Optional
-from pydantic import BaseModel
+from pydantic import BaseModel  # keep this if it's already there; add if missing
 
+
+class SchemaColumn(BaseModel):
+    name: str
+    data_type: str
+    nullable: bool = True
 
 class RunScanRequest(BaseModel):
     """

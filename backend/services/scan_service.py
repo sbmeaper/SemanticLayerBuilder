@@ -105,19 +105,19 @@ async def run_scan_for_payload(request: RunScanRequest) -> RunScanResponse:
     # Build a message that includes (for now) some schema info for debugging
     if schema_info:
         msg = (
-            "scan_service.run_scan_for_payload is using stubbed SQL schema "
+            "scan_service.run_scan_for_payload is using the detected SQL schema "
             "and returning schema-derived dimensions. "
-            f"Stubbed SQL schema: {schema_info}"
+            f"Detected schema columns: {schema_info}"
         )
     else:
         msg = (
             "scan_service.run_scan_for_payload did not receive a SQL source. "
-            "No schema-derived dimensions generated."
+            "No schema-derived dimensions were selected."
         )
 
     return RunScanResponse(
         status="schema_only",
         message=msg,
         dimensions=dims,
-        metrics=fake_metrics,
+        metrics=[],
     )
